@@ -102,7 +102,7 @@
             </div>
             <div>
                 <h1 class="text-base font-bold tracking-wide flex items-center gap-2">
-                    統創曜：交屋時程 甘特圖管理系統
+                    新知段96地號：專案時程甘特圖管理系統
                     <span class="text-xs font-normal px-2 py-0.5 bg-brand-500/30 text-brand-300 rounded-full border border-brand-500/40">v3.0 雲端同步版</span>
                 </h1>
                 <p class="text-xs text-slate-400">連線至 Google Sheet 試算表，支援雙向即時同步與編輯</p>
@@ -395,9 +395,9 @@
                 </div>
 
                 <div>
-                    <label class="block font-semibold mb-1">Google Apps Script Web App API URL (已完成連線部署)</label>
-                    <input type="url" id="input-gas-url" value="https://script.google.com/macros/s/AKfycbwtM8alwRGFUv6oVPhuMEXxyxxXKeS3DjwND1QLwggmqpwAn3fp4YuOyJjgZOkyNQKn/exec" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 font-mono text-xs">
-                    <p class="text-[11px] text-emerald-700 font-medium mt-1"><i class="fa-solid fa-circle-check"></i> Web App API 網址已配置，可進行雙向讀取與寫入同步。</p>
+                    <label class="block font-semibold mb-1">Google Apps Script Web App API URL (若僅讀取可留空)</label>
+                    <input type="url" id="input-gas-url" value="" placeholder="請貼上 Apps Script 部署之 Web App 網址" class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 font-mono text-xs">
+                    <p class="text-[11px] text-slate-500 mt-1">預設使用 Google CSV 發佈發送即時純讀取連線；如需由前端寫回試算表，請配置 Web App API 網址。</p>
                 </div>
 
                 <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
@@ -431,10 +431,9 @@
         class GanttApp {
             constructor() {
                 const storedGasUrl = localStorage.getItem('gantt_gas_url');
-                const defaultGasUrl = 'https://script.google.com/macros/s/AKfycbwVJJvvAnX6768WFY9-QY6vbDeGQnJM2rFFZEEdGr8zVJvpZFM3LBqSBWYNIVPnwp2O/exec';
                 
                 this.spreadsheetId = localStorage.getItem('gantt_gsheet_id') || '1domayjGzs0_y9vYB36krHHYNz_5iFbYnaLRL5mYRhE1DPwkH-RJ7RY_9xCDi';
-                this.gasWebappUrl = (storedGasUrl && storedGasUrl.startsWith('http')) ? storedGasUrl : defaultGasUrl;
+                this.gasWebappUrl = (storedGasUrl && storedGasUrl.startsWith('http')) ? storedGasUrl : '';
 
                 // 每次打開頁面時自動清理歷史快取，完全以 Google Sheet 資料為準
                 localStorage.removeItem('gantt_tasks_data');
@@ -457,9 +456,7 @@
                 this.render();
 
                 // 網頁載入時自動從 Google Sheet 載入最新資料
-                if (this.gasWebappUrl || this.spreadsheetId) {
-                    this.fetchFromGoogleSheet(true);
-                }
+                this.fetchFromGoogleSheet(true);
             }
 
             initDOM() {
@@ -874,7 +871,6 @@
                         if (scriptElem) scriptElem.remove();
 
                         if (Array.isArray(resData) && resData.length > 0) {
-                            // 補強每筆任務的 start 日期格式為 YYYY-MM-DD
                             this.tasks = resData.map(t => ({
                                 ...t,
                                 start: this.formatDateISO(this.parseDate(t.start))
@@ -933,7 +929,6 @@
                         return;
                     }
 
-                    // 轉換日期儲存格為標準 ISO YYYY-MM-DD
                     const extractISO = (cell) => {
                         if (!cell) return null;
                         let d = null;
@@ -947,7 +942,6 @@
                         return (d && !isNaN(d.getTime())) ? this.formatDateISO(d) : null;
                     };
 
-                    // 掃描 D 欄找出資料庫中的最小開始日期
                     let dbMinDateObj = null;
                     rows.forEach(r => {
                         if (r && r.c && r.c[3]) {
@@ -1026,11 +1020,10 @@
 
             async pushToGoogleSheet() {
                 let gasUrl = this.dom.inputGasUrl.value.trim();
-                const defaultGasUrl = 'https://script.google.com/macros/s/AKfycbwVJJvvAnX6768WFY9-QY6vbDeGQnJM2rFFZEEdGr8zVJvpZFM3LBqSBWYNIVPnwp2O/exec';
                 
                 if (!gasUrl || !gasUrl.startsWith('http')) {
-                    gasUrl = defaultGasUrl;
-                    this.dom.inputGasUrl.value = gasUrl;
+                    this.showToast("請先輸入 Apps Script Web App API 網址以進行寫入與同步！", "error");
+                    return;
                 }
 
                 try {
